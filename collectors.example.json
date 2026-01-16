@@ -1,0 +1,65 @@
+{
+  "comment": "采集站配置示例 - 可以在 synctv_collector.py 中添加更多采集站",
+  "collectors": [
+    {
+      "id": "1",
+      "name": "魔都资源",
+      "api": "https://moduzy.com/api.php/provide/vod/",
+      "type": "json",
+      "description": "支持电影、电视剧、动漫等"
+    },
+    {
+      "id": "2",
+      "name": "淘片资源",
+      "api": "https://www.taopianzy.com/api.php/provide/vod/",
+      "type": "json",
+      "description": "资源更新快"
+    },
+    {
+      "id": "3",
+      "name": "360资源",
+      "api": "https://360zy5.com/api.php/provide/vod/",
+      "type": "xml",
+      "description": "XML 格式暂不支持"
+    },
+    {
+      "id": "4",
+      "name": "红牛资源",
+      "api": "https://hongniuziyuan.net/api.php/provide/vod/",
+      "type": "json",
+      "description": "高清资源较多"
+    },
+    {
+      "id": "5",
+      "name": "非凡资源",
+      "api": "https://cj.ffzyapi.com/api.php/provide/vod/",
+      "type": "json",
+      "description": "稳定性好"
+    },
+    {
+      "id": "6",
+      "name": "量子资源",
+      "api": "https://cj.lziapi.com/api.php/provide/vod/",
+      "type": "json",
+      "description": "资源丰富"
+    }
+  ],
+  "api_format": {
+    "search": "{api_url}?wd={keyword}",
+    "detail": "{api_url}?ac=detail&ids={id}",
+    "list": "{api_url}?ac=list&t={type_id}&pg={page}"
+  },
+  "response_format": {
+    "json": {
+      "list": "data.list 或 list",
+      "fields": {
+        "name": "vod_name",
+        "id": "vod_id",
+        "type": "type_name",
+        "year": "vod_year",
+        "play_url": "vod_play_url",
+        "play_from": "vod_play_from"
+      }
+    }
+  }
+}
