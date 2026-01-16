@@ -8,6 +8,7 @@ import sys
 import json
 import re
 import warnings
+import os
 from urllib.parse import urlencode
 
 # 禁用SSL警告
@@ -17,6 +18,9 @@ warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 SYNCTV_URL = "http://localhost:8080"
 DEFAULT_USERNAME = "root"
 DEFAULT_PASSWORD = "root"
+
+# 自定义配置文件路径
+CUSTOM_CONFIG_FILE = "collectors_custom.json"
 
 # 采集站配置 (经过测试的可用站点)
 COLLECTORS = {
@@ -33,40 +37,58 @@ COLLECTORS = {
         "status": "✓"
     },
     "3": {
+        "name": "红牛资源",
+        "api": "http://hongniuzy2.com/api.php/provide/vod/",
+        "type": "json",
+        "status": "✓"
+    },
+    "4": {
         "name": "速播资源",
         "api": "https://subocaiji.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "4": {
+    "5": {
         "name": "最大资源",
         "api": "https://api.zuidapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "5": {
+    "6": {
         "name": "卧龙资源",
         "api": "https://collect.wolongzyw.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "6": {
+    "7": {
         "name": "光速资源",
         "api": "https://api.guangsuapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "7": {
+    "8": {
         "name": "新浪资源",
         "api": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "8": {
-        "name": "红牛资源",
-        "api": "http://hongniuzy2.com/api.php/provide/vod/",
+    "9": {
+        "name": "无尽资源",
+        "api": "https://api.wujinapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
+    }
+}
+
+# 可选采集站（需要特殊网络环境或可能不稳定）
+OPTIONAL_COLLECTORS = {
+    "魔都资源": {
+        "api": "https://moduzy.com/api.php/provide/vod/",
+        "note": "可能需要科学上网或使用镜像站"
+    },
+    "淘片资源": {
+        "api": "https://www.taopianzy.com/api.php/provide/vod/",
+        "note": "可能需要科学上网"
     }
 }
 
@@ -87,6 +109,76 @@ def login(username, password):
     except Exception as e:
         print(f"✗ 登录错误: {e}")
         return None
+
+
+def search_collector_direct(collector, keyword, retry=2):
+    """直接使用collector对象搜索资源 (带重试机制)"""
+    api_url = f"{collector['api']}?wd={keyword}"
+
+    print(f"\n🔍 正在搜索 [{collector['name']}]: {keyword}")
+
+    for attempt in range(retry + 1):
+        try:
+            resp = requests.get(
+                api_url,
+                timeout=10,
+                verify=False,  # 禁用SSL验证
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            )
+
+            if resp.status_code != 200:
+                if attempt < retry:
+                    print(f"  ⚠ 请求失败 ({resp.status_code})，重试中... ({attempt + 1}/{retry})")
+                    continue
+                else:
+                    print(f"✗ 请求失败: {resp.status_code}")
+                    return []
+
+            # 解析 JSON 响应
+            try:
+                data = resp.json()
+                if 'list' in data:
+                    results = data['list']
+                elif 'data' in data:
+                    results = data['data']
+                else:
+                    print(f"✗ 未知的响应格式: {list(data.keys())}")
+                    return []
+
+                # 过滤掉空结果
+                if not results:
+                    print(f"✗ 没有找到相关资源")
+                return results
+
+            except json.JSONDecodeError:
+                if attempt < retry:
+                    print(f"  ⚠ 响应解析失败，重试中... ({attempt + 1}/{retry})")
+                    continue
+                else:
+                    print(f"✗ 响应格式错误 (非JSON)")
+                    return []
+
+        except requests.exceptions.Timeout:
+            if attempt < retry:
+                print(f"  ⚠ 请求超时，重试中... ({attempt + 1}/{retry})")
+                continue
+            else:
+                print(f"✗ 请求超时，采集站可能无法访问")
+                return []
+        except requests.exceptions.SSLError:
+            print(f"✗ SSL证书错误")
+            return []
+        except Exception as e:
+            if attempt < retry:
+                print(f"  ⚠ 错误: {str(e)[:30]}，重试中... ({attempt + 1}/{retry})")
+                continue
+            else:
+                print(f"✗ 搜索错误: {str(e)[:50]}")
+                return []
+
+    return []
 
 
 def search_collector(collector_id, keyword, retry=2):
@@ -285,20 +377,50 @@ def batch_import(token, room_id, movies):
         return False
 
 
+def load_custom_collectors():
+    """加载自定义采集站配置"""
+    if not os.path.exists(CUSTOM_CONFIG_FILE):
+        return {}
+
+    try:
+        with open(CUSTOM_CONFIG_FILE, 'r', encoding='utf-8') as f:
+            custom = json.load(f)
+            print(f"✓ 加载自定义配置: {len(custom)} 个采集站\n")
+            return custom
+    except Exception as e:
+        print(f"⚠ 加载自定义配置失败: {e}\n")
+        return {}
+
+
 def main():
     print("=" * 70)
-    print("  SyncTV 采集站资源搜索导入工具 v2.0")
+    print("  SyncTV 采集站资源搜索导入工具 v2.1")
     print("=" * 70)
+
+    # 加载自定义配置
+    custom_collectors = load_custom_collectors()
+
+    # 合并采集站列表
+    all_collectors = COLLECTORS.copy()
+    if custom_collectors:
+        start_id = len(all_collectors) + 1
+        for i, (name, config) in enumerate(custom_collectors.items()):
+            all_collectors[str(start_id + i)] = {
+                "name": name,
+                "api": config.get("api"),
+                "type": config.get("type", "json"),
+                "status": "⭐"  # 自定义站点标记
+            }
 
     # 显示采集站列表
     print("\n可用采集站 (已测试可用):")
-    for id, info in COLLECTORS.items():
+    for id, info in all_collectors.items():
         status = info.get('status', '')
         print(f"  [{id}] {status} {info['name']}")
 
     # 选择采集站
-    collector_id = input(f"\n选择采集站 [1-{len(COLLECTORS)}]: ").strip()
-    if collector_id not in COLLECTORS:
+    collector_id = input(f"\n选择采集站 [1-{len(all_collectors)}]: ").strip()
+    if collector_id not in all_collectors:
         print("✗ 无效的选择")
         sys.exit(1)
 
@@ -308,8 +430,9 @@ def main():
         print("✗ 关键词不能为空")
         sys.exit(1)
 
-    # 搜索
-    results = search_collector(collector_id, keyword)
+    # 使用all_collectors进行搜索
+    selected_collector = all_collectors[collector_id]
+    results = search_collector_direct(selected_collector, keyword)
     if not display_results(results):
         sys.exit(0)
 

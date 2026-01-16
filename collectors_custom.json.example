@@ -1,0 +1,22 @@
+{
+  "_comment": "自定义采集站配置文件",
+  "_instructions": "复制此文件为 collectors_custom.json 并修改内容",
+
+  "魔都资源": {
+    "api": "https://moduzy.com/api.php/provide/vod/",
+    "type": "json",
+    "note": "如果可以访问魔都资源，可以取消注释"
+  },
+
+  "淘片资源": {
+    "api": "https://www.taopianzy.com/api.php/provide/vod/",
+    "type": "json",
+    "note": "如果可以访问淘片资源，可以取消注释"
+  },
+
+  "示例自定义站点": {
+    "api": "https://your-custom-site.com/api.php/provide/vod/",
+    "type": "json",
+    "note": "添加你自己的采集站"
+  }
+}

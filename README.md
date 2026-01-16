@@ -14,30 +14,36 @@
 ## 工具列表
 
 ### 1. synctv_collector.py (🆕 推荐!)
-**采集站资源搜索导入工具 v2.0**
+**采集站资源搜索导入工具 v2.1**
 
 ```bash
 python3 synctv_collector.py
 ```
 
 特点:
-- ✅ 支持 8 个已测试可用的采集站
+- ✅ 支持 9 个已测试可用的采集站
 - ✅ 关键词搜索影视资源
 - ✅ 查看详细信息（演员、导演、简介）
 - ✅ 多播放源选择
 - ✅ 灵活的集数范围导入
 - ✅ 智能重试机制（失败自动重试）
 - ✅ 直接导入到 SyncTV 房间
+- 🆕 **支持自定义采集站配置**
 
 **支持的采集站 (已测试可用):**
 1. ✓ 量子资源 (cj.lziapi.com)
-2. ✓ 360资源 (360zy5.com)
-3. ✓ 速播资源 (subocaiji.com)
-4. ✓ 最大资源 (api.zuidapi.com)
-5. ✓ 卧龙资源 (collect.wolongzyw.com)
-6. ✓ 光速资源 (api.guangsuapi.com)
-7. ✓ 新浪资源 (api.xinlangapi.com)
-8. ✓ 红牛资源 (hongniuzy2.com)
+2. ✓ 360资源 (360zy5.com) ⭐必选
+3. ✓ 红牛资源 (hongniuzy2.com) ⭐必选
+4. ✓ 速播资源 (subocaiji.com)
+5. ✓ 最大资源 (api.zuidapi.com)
+6. ✓ 卧龙资源 (collect.wolongzyw.com)
+7. ✓ 光速资源 (api.guangsuapi.com)
+8. ✓ 新浪资源 (api.xinlangapi.com)
+9. ✓ 无尽资源 (api.wujinapi.com)
+
+**可选采集站（需要特殊网络环境）:**
+- 魔都资源 (moduzy.com) - 可能需要代理
+- 淘片资源 (taopianzy.com) - 可能需要代理
 
 ### 2. synctv_import.py
 **本地文件批量导入版本**
@@ -181,8 +187,24 @@ A: 尝试更换采集站,不同采集站的资源库不同
 **Q: 播放链接失效怎么办?**
 A: 采集站的链接时效性不同,可以重新搜索或选择其他播放源
 
-**Q: 支持自定义添加采集站吗?**
-A: 可以,编辑 `synctv_collector.py` 中的 `COLLECTORS` 字典添加新的采集站 API
+**Q: 如何添加自定义采集站?**
+A: 创建 `collectors_custom.json` 文件（可参考 `collectors_custom.json.example`）:
+```json
+{
+  "魔都资源": {
+    "api": "https://moduzy.com/api.php/provide/vod/",
+    "type": "json"
+  },
+  "你的采集站": {
+    "api": "https://your-site.com/api.php/provide/vod/",
+    "type": "json"
+  }
+}
+```
+重启工具后将自动加载，显示为 ⭐ 标记
+
+**Q: 360资源和红牛资源为什么是必选?**
+A: 这两个站点经过严格测试，稳定性高且无需特殊网络环境，强烈推荐优先使用
 
 ### 通用问题
 
