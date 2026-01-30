@@ -19,6 +19,28 @@ def login(username, password):
         print(f"✗ 登录失败: {resp.status_code} {resp.text}")
         sys.exit(1)
 
+def clear_playlist(token, room_id):
+    """清空房间播放列表"""
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.post(
+        f"{SYNCTV_URL}/api/room/movie/clear?roomId={room_id}",
+        json={"parentId": ""},
+        headers=headers
+    )
+
+    if resp.status_code == 204 or resp.status_code == 200:
+        print("✓ 已清空播放列表")
+        return True
+    else:
+        print(f"✗ 清空失败: {resp.status_code}")
+        try:
+            error = resp.json()
+            print(f"  错误: {error.get('error', resp.text)}")
+        except:
+            print(f"  错误: {resp.text}")
+        return False
+
+
 def batch_import(token, room_id, movies):
     """批量导入视频"""
     headers = {"Authorization": f"Bearer {token}"}
@@ -80,6 +102,7 @@ def main():
     file_path = input(f"文件路径 (默认: {DEFAULT_FILE}): ").strip() or DEFAULT_FILE
 
     rename = input("是否重命名视频? (y/N): ").strip().lower() == 'y'
+    clear_before = input("导入前清空播放列表? (y/N): ").strip().lower() == 'y'
 
     print("\n正在登录...")
     token = login(username, password)
@@ -92,7 +115,13 @@ def main():
         print("没有找到有效的链接")
         sys.exit(1)
 
-    print(f"\n共 {len(movies)} 个视频,开始导入...")
+    print(f"\n共 {len(movies)} 个视频")
+
+    if clear_before:
+        print("\n清空播放列表...")
+        clear_playlist(token, room_id)
+
+    print("开始导入...")
     batch_import(token, room_id, movies)
 
 if __name__ == "__main__":

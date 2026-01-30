@@ -118,6 +118,33 @@ def login(username, password):
         return None
 
 
+def clear_playlist(token, room_id):
+    """清空房间播放列表"""
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        resp = requests.post(
+            f"{SYNCTV_URL}/api/room/movie/clear?roomId={room_id}",
+            json={"parentId": ""},
+            headers=headers,
+            timeout=10
+        )
+
+        if resp.status_code == 204 or resp.status_code == 200:
+            print("✓ 已清空播放列表")
+            return True
+        else:
+            print(f"✗ 清空失败: {resp.status_code}")
+            try:
+                error = resp.json()
+                print(f"  错误: {error.get('error', resp.text)}")
+            except:
+                print(f"  错误: {resp.text}")
+            return False
+    except Exception as e:
+        print(f"✗ 清空错误: {e}")
+        return False
+
+
 def search_collector_direct(collector, keyword, retry=2):
     """直接使用collector对象搜索资源 (带重试机制和备用API)"""
     # 获取所有可用的API列表
@@ -508,6 +535,7 @@ def main():
     room_id = input(f"SyncTV 房间 ID (默认: {DEFAULT_ROOM_ID}): ").strip() or DEFAULT_ROOM_ID
     username = input(f"用户名 (默认: {DEFAULT_USERNAME}): ").strip() or DEFAULT_USERNAME
     password = input(f"密码 (默认: {DEFAULT_PASSWORD}): ").strip() or DEFAULT_PASSWORD
+    clear_before = input("导入前清空播放列表? (y/N): ").strip().lower() == 'y'
 
     print("\n正在登录...")
     token = login(username, password)
@@ -521,6 +549,11 @@ def main():
     if confirm != 'y':
         print("已取消")
         sys.exit(0)
+
+    # 清空播放列表
+    if clear_before:
+        print("\n清空播放列表...")
+        clear_playlist(token, room_id)
 
     # 批量导入
     batch_import(token, room_id, to_import)
