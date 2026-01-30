@@ -77,18 +77,26 @@ COLLECTORS = {
         "api": "https://api.wujinapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
-    }
-}
-
-# 可选采集站（需要特殊网络环境或可能不稳定）
-OPTIONAL_COLLECTORS = {
-    "魔都资源": {
-        "api": "https://moduzy.com/api.php/provide/vod/",
-        "note": "可能需要科学上网或使用镜像站"
     },
-    "淘片资源": {
-        "api": "https://www.taopianzy.com/api.php/provide/vod/",
-        "note": "可能需要科学上网"
+    "10": {
+        "name": "魔都资源",
+        "api": "https://moduzy.com/api.php/provide/vod/",
+        "type": "json",
+        "status": "✓",
+        "note": "专注动漫资源",
+        "backup_apis": [
+            "https://moduzy1.com/api.php/provide/vod/"
+        ]
+    },
+    "11": {
+        "name": "淘片资源",
+        "api": "https://taopianzy.com/api.php/provide/vod/",
+        "type": "json",
+        "status": "⚠",
+        "note": "可能需要特殊网络环境",
+        "backup_apis": [
+            "https://www.taopianzy.com/api.php/provide/vod/"
+        ]
     }
 }
 
@@ -112,71 +120,96 @@ def login(username, password):
 
 
 def search_collector_direct(collector, keyword, retry=2):
-    """直接使用collector对象搜索资源 (带重试机制)"""
-    api_url = f"{collector['api']}?wd={keyword}"
+    """直接使用collector对象搜索资源 (带重试机制和备用API)"""
+    # 获取所有可用的API列表
+    apis = [collector['api']]
+    if 'backup_apis' in collector:
+        apis.extend(collector['backup_apis'])
 
     print(f"\n🔍 正在搜索 [{collector['name']}]: {keyword}")
 
-    for attempt in range(retry + 1):
-        try:
-            resp = requests.get(
-                api_url,
-                timeout=10,
-                verify=False,  # 禁用SSL验证
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            )
+    # 尝试每个API
+    for api_index, api_url in enumerate(apis):
+        if api_index > 0:
+            print(f"  ⚠ 尝试备用API ({api_index}/{len(apis)-1})")
 
-            if resp.status_code != 200:
-                if attempt < retry:
-                    print(f"  ⚠ 请求失败 ({resp.status_code})，重试中... ({attempt + 1}/{retry})")
-                    continue
-                else:
-                    print(f"✗ 请求失败: {resp.status_code}")
-                    return []
+        search_url = f"{api_url}?wd={keyword}"
 
-            # 解析 JSON 响应
+        for attempt in range(retry + 1):
             try:
-                data = resp.json()
-                if 'list' in data:
-                    results = data['list']
-                elif 'data' in data:
-                    results = data['data']
-                else:
-                    print(f"✗ 未知的响应格式: {list(data.keys())}")
-                    return []
+                resp = requests.get(
+                    search_url,
+                    timeout=10,
+                    verify=False,  # 禁用SSL验证
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                )
 
-                # 过滤掉空结果
-                if not results:
-                    print(f"✗ 没有找到相关资源")
-                return results
+                if resp.status_code != 200:
+                    if attempt < retry:
+                        print(f"  ⚠ 请求失败 ({resp.status_code})，重试中... ({attempt + 1}/{retry})")
+                        continue
+                    else:
+                        # 如果还有备用API，跳到下一个
+                        if api_index < len(apis) - 1:
+                            break
+                        print(f"✗ 请求失败: {resp.status_code}")
+                        return []
 
-            except json.JSONDecodeError:
+                # 解析 JSON 响应
+                try:
+                    data = resp.json()
+                    if 'list' in data:
+                        results = data['list']
+                    elif 'data' in data:
+                        results = data['data']
+                    else:
+                        print(f"✗ 未知的响应格式: {list(data.keys())}")
+                        return []
+
+                    # 过滤掉空结果
+                    if not results:
+                        print(f"✗ 没有找到相关资源")
+                    return results
+
+                except json.JSONDecodeError:
+                    if attempt < retry:
+                        print(f"  ⚠ 响应解析失败，重试中... ({attempt + 1}/{retry})")
+                        continue
+                    else:
+                        # 如果还有备用API，跳到下一个
+                        if api_index < len(apis) - 1:
+                            break
+                        print(f"✗ 响应格式错误 (非JSON)")
+                        return []
+
+            except requests.exceptions.Timeout:
                 if attempt < retry:
-                    print(f"  ⚠ 响应解析失败，重试中... ({attempt + 1}/{retry})")
+                    print(f"  ⚠ 请求超时，重试中... ({attempt + 1}/{retry})")
                     continue
                 else:
-                    print(f"✗ 响应格式错误 (非JSON)")
+                    # 如果还有备用API，跳到下一个
+                    if api_index < len(apis) - 1:
+                        break
+                    print(f"✗ 请求超时，采集站可能无法访问")
                     return []
-
-        except requests.exceptions.Timeout:
-            if attempt < retry:
-                print(f"  ⚠ 请求超时，重试中... ({attempt + 1}/{retry})")
-                continue
-            else:
-                print(f"✗ 请求超时，采集站可能无法访问")
+            except requests.exceptions.SSLError:
+                # 如果还有备用API，跳到下一个
+                if api_index < len(apis) - 1:
+                    break
+                print(f"✗ SSL证书错误")
                 return []
-        except requests.exceptions.SSLError:
-            print(f"✗ SSL证书错误")
-            return []
-        except Exception as e:
-            if attempt < retry:
-                print(f"  ⚠ 错误: {str(e)[:30]}，重试中... ({attempt + 1}/{retry})")
-                continue
-            else:
-                print(f"✗ 搜索错误: {str(e)[:50]}")
-                return []
+            except Exception as e:
+                if attempt < retry:
+                    print(f"  ⚠ 错误: {str(e)[:30]}，重试中... ({attempt + 1}/{retry})")
+                    continue
+                else:
+                    # 如果还有备用API，跳到下一个
+                    if api_index < len(apis) - 1:
+                        break
+                    print(f"✗ 搜索错误: {str(e)[:50]}")
+                    return []
 
     return []
 
@@ -309,7 +342,30 @@ def parse_play_url(play_url_str):
     return episodes
 
 
-def get_video_detail(item):
+def get_video_detail_from_api(collector, vod_id):
+    """从API获取视频详情"""
+    try:
+        resp = requests.get(
+            f"{collector['api']}?ac=detail&ids={vod_id}",
+            timeout=10,
+            verify=False,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        )
+
+        if resp.status_code == 200:
+            data = resp.json()
+            results = data.get('list', data.get('data', []))
+            if results:
+                return results[0]
+    except Exception as e:
+        print(f"  ⚠ 获取详情失败: {str(e)[:50]}")
+
+    return None
+
+
+def get_video_detail(item, collector=None):
     """获取视频详情和播放列表"""
     print(f"\n📺 {item.get('vod_name', '未知')}")
     print(f"   类型: {item.get('type_name', '未知')}")
@@ -322,6 +378,15 @@ def get_video_detail(item):
     # 获取播放列表
     vod_play_from = item.get('vod_play_from', '')
     vod_play_url = item.get('vod_play_url', '')
+
+    # 如果搜索结果没有播放地址，尝试调用详情API
+    if not vod_play_url and collector and item.get('vod_id'):
+        print(f"\n  ⚠ 搜索结果无播放地址，正在获取详情...")
+        detail = get_video_detail_from_api(collector, item.get('vod_id'))
+        if detail:
+            vod_play_from = detail.get('vod_play_from', '')
+            vod_play_url = detail.get('vod_play_url', '')
+            print(f"  ✓ 成功获取详情")
 
     if not vod_play_url:
         print("\n✗ 没有可用的播放地址")
@@ -394,7 +459,7 @@ def load_custom_collectors():
 
 def main():
     print("=" * 70)
-    print("  SyncTV 采集站资源搜索导入工具 v2.1")
+    print("  SyncTV 采集站资源搜索导入工具 v2.2")
     print("=" * 70)
 
     # 加载自定义配置
@@ -413,10 +478,26 @@ def main():
             }
 
     # 显示采集站列表
-    print("\n可用采集站 (已测试可用):")
+    print("\n可用采集站:")
+    print("-" * 70)
     for id, info in all_collectors.items():
         status = info.get('status', '')
-        print(f"  [{id}] {status} {info['name']}")
+        name = info['name']
+        # 显示是否有备用API
+        backup_info = ""
+        if 'backup_apis' in info:
+            backup_info = f" (含{len(info['backup_apis'])}个备用API)"
+        # 显示注释
+        note = info.get('note', '')
+        note_str = f" - {note}" if note else ""
+        print(f"  [{id:>2}] {status} {name:<20}{backup_info}{note_str}")
+    print("-" * 70)
+    print("\n提示:")
+    print("  ✓ = 已测试可用")
+    print("  ⚠ = 可能需要特殊网络环境")
+    print("  ⭐ = 自定义采集站")
+    print("  推荐: 2-360资源, 3-红牛资源 (稳定性高)")
+    print("  新增: 10-魔都资源 (动漫专注), 11-淘片资源")
 
     # 选择采集站
     collector_id = input(f"\n选择采集站 [1-{len(all_collectors)}]: ").strip()
@@ -450,7 +531,7 @@ def main():
     selected = results[choice - 1]
 
     # 显示详情和播放列表
-    all_episodes = get_video_detail(selected)
+    all_episodes = get_video_detail(selected, selected_collector)
     if not all_episodes:
         sys.exit(0)
 
