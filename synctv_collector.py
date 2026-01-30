@@ -6,10 +6,8 @@ SyncTV 采集站资源搜索和导入工具
 import requests
 import sys
 import json
-import re
 import warnings
 import os
-from urllib.parse import urlencode
 
 # 禁用SSL警告
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -210,81 +208,6 @@ def search_collector_direct(collector, keyword, retry=2):
                         break
                     print(f"✗ 搜索错误: {str(e)[:50]}")
                     return []
-
-    return []
-
-
-def search_collector(collector_id, keyword, retry=2):
-    """搜索采集站资源 (带重试机制)"""
-    if collector_id not in COLLECTORS:
-        print(f"✗ 无效的采集站ID: {collector_id}")
-        return []
-
-    collector = COLLECTORS[collector_id]
-    api_url = f"{collector['api']}?wd={keyword}"
-
-    print(f"\n🔍 正在搜索 [{collector['name']}]: {keyword}")
-
-    for attempt in range(retry + 1):
-        try:
-            resp = requests.get(
-                api_url,
-                timeout=10,
-                verify=False,  # 禁用SSL验证
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            )
-
-            if resp.status_code != 200:
-                if attempt < retry:
-                    print(f"  ⚠ 请求失败 ({resp.status_code})，重试中... ({attempt + 1}/{retry})")
-                    continue
-                else:
-                    print(f"✗ 请求失败: {resp.status_code}")
-                    return []
-
-            # 解析 JSON 响应
-            try:
-                data = resp.json()
-                if 'list' in data:
-                    results = data['list']
-                elif 'data' in data:
-                    results = data['data']
-                else:
-                    print(f"✗ 未知的响应格式: {list(data.keys())}")
-                    return []
-
-                # 过滤掉空结果
-                if not results:
-                    print(f"✗ 没有找到相关资源")
-                return results
-
-            except json.JSONDecodeError:
-                if attempt < retry:
-                    print(f"  ⚠ 响应解析失败，重试中... ({attempt + 1}/{retry})")
-                    continue
-                else:
-                    print(f"✗ 响应格式错误 (非JSON)")
-                    return []
-
-        except requests.exceptions.Timeout:
-            if attempt < retry:
-                print(f"  ⚠ 请求超时，重试中... ({attempt + 1}/{retry})")
-                continue
-            else:
-                print(f"✗ 请求超时，采集站可能无法访问")
-                return []
-        except requests.exceptions.SSLError:
-            print(f"✗ SSL证书错误")
-            return []
-        except Exception as e:
-            if attempt < retry:
-                print(f"  ⚠ 错误: {str(e)[:30]}，重试中... ({attempt + 1}/{retry})")
-                continue
-            else:
-                print(f"✗ 搜索错误: {str(e)[:50]}")
-                return []
 
     return []
 
