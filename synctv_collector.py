@@ -13,8 +13,9 @@ import os
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # SyncTV 配置
-SYNCTV_URL = "http://localhost:8080"
+SYNCTV_URL = "http://172.17.0.2:8080"
 DEFAULT_USERNAME = "root"
+DEFAULT_ROOM_ID = "4d798e90700743c1907f830df0798f8e"
 DEFAULT_PASSWORD = "root"
 
 # 自定义配置文件路径
@@ -23,10 +24,14 @@ CUSTOM_CONFIG_FILE = "collectors_custom.json"
 # 采集站配置 (经过测试的可用站点)
 COLLECTORS = {
     "1": {
-        "name": "量子资源",
-        "api": "https://cj.lziapi.com/api.php/provide/vod/",
+        "name": "魔都资源",
+        "api": "https://moduzy.com/api.php/provide/vod/",
         "type": "json",
-        "status": "✓"
+        "status": "✓",
+        "note": "推荐，专注动漫资源",
+        "backup_apis": [
+            "https://moduzy1.com/api.php/provide/vod/"
+        ]
     },
     "2": {
         "name": "360资源",
@@ -41,50 +46,46 @@ COLLECTORS = {
         "status": "✓"
     },
     "4": {
+        "name": "量子资源",
+        "api": "https://cj.lziapi.com/api.php/provide/vod/",
+        "type": "json",
+        "status": "✓"
+    },
+    "5": {
         "name": "速播资源",
         "api": "https://subocaiji.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "5": {
+    "6": {
         "name": "最大资源",
         "api": "https://api.zuidapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "6": {
+    "7": {
         "name": "卧龙资源",
         "api": "https://collect.wolongzyw.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "7": {
+    "8": {
         "name": "光速资源",
         "api": "https://api.guangsuapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "8": {
+    "9": {
         "name": "新浪资源",
         "api": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/",
         "type": "json",
         "status": "✓"
     },
-    "9": {
+    "10": {
         "name": "无尽资源",
         "api": "https://api.wujinapi.com/api.php/provide/vod/",
         "type": "json",
         "status": "✓"
-    },
-    "10": {
-        "name": "魔都资源",
-        "api": "https://moduzy.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓",
-        "note": "专注动漫资源",
-        "backup_apis": [
-            "https://moduzy1.com/api.php/provide/vod/"
-        ]
     },
     "11": {
         "name": "淘片资源",
@@ -419,11 +420,10 @@ def main():
     print("  ✓ = 已测试可用")
     print("  ⚠ = 可能需要特殊网络环境")
     print("  ⭐ = 自定义采集站")
-    print("  推荐: 2-360资源, 3-红牛资源 (稳定性高)")
-    print("  新增: 10-魔都资源 (动漫专注), 11-淘片资源")
+    print("  推荐: 1-魔都资源 (动漫专注), 2-360资源, 3-红牛资源")
 
     # 选择采集站
-    collector_id = input(f"\n选择采集站 [1-{len(all_collectors)}]: ").strip()
+    collector_id = input(f"\n选择采集站 [1-{len(all_collectors)}] (默认: 1): ").strip() or "1"
     if collector_id not in all_collectors:
         print("✗ 无效的选择")
         sys.exit(1)
@@ -505,7 +505,7 @@ def main():
 
     # 登录 SyncTV
     print("\n" + "=" * 70)
-    room_id = input("SyncTV 房间 ID: ").strip()
+    room_id = input(f"SyncTV 房间 ID (默认: {DEFAULT_ROOM_ID}): ").strip() or DEFAULT_ROOM_ID
     username = input(f"用户名 (默认: {DEFAULT_USERNAME}): ").strip() or DEFAULT_USERNAME
     password = input(f"密码 (默认: {DEFAULT_PASSWORD}): ").strip() or DEFAULT_PASSWORD
 
