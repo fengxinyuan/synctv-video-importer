@@ -7,7 +7,6 @@ import requests
 import sys
 import json
 import warnings
-import os
 
 # 禁用SSL警告
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -18,86 +17,23 @@ DEFAULT_USERNAME = "root"
 DEFAULT_ROOM_ID = "4d798e90700743c1907f830df0798f8e"
 DEFAULT_PASSWORD = "root"
 
-# 自定义配置文件路径
-CUSTOM_CONFIG_FILE = "collectors_custom.json"
+# 采集站配置文件
+COLLECTORS_FILE = "collectors.json"
 
-# 采集站配置 (经过测试的可用站点)
-COLLECTORS = {
-    "1": {
-        "name": "魔都资源",
-        "api": "https://moduzy.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓",
-        "note": "推荐，专注动漫资源",
-        "backup_apis": [
-            "https://moduzy1.com/api.php/provide/vod/"
-        ]
-    },
-    "2": {
-        "name": "360资源",
-        "api": "https://360zy5.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "3": {
-        "name": "红牛资源",
-        "api": "http://hongniuzy2.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "4": {
-        "name": "量子资源",
-        "api": "https://cj.lziapi.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "5": {
-        "name": "速播资源",
-        "api": "https://subocaiji.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "6": {
-        "name": "最大资源",
-        "api": "https://api.zuidapi.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "7": {
-        "name": "卧龙资源",
-        "api": "https://collect.wolongzyw.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "8": {
-        "name": "光速资源",
-        "api": "https://api.guangsuapi.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "9": {
-        "name": "新浪资源",
-        "api": "https://api.xinlangapi.com/xinlangapi.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "10": {
-        "name": "无尽资源",
-        "api": "https://api.wujinapi.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "✓"
-    },
-    "11": {
-        "name": "淘片资源",
-        "api": "https://taopianzy.com/api.php/provide/vod/",
-        "type": "json",
-        "status": "⚠",
-        "note": "可能需要特殊网络环境",
-        "backup_apis": [
-            "https://www.taopianzy.com/api.php/provide/vod/"
-        ]
-    }
-}
+
+def load_collectors():
+    """从 JSON 文件加载采集站配置"""
+    import os
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), COLLECTORS_FILE)
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"✗ 采集站配置文件不存在: {COLLECTORS_FILE}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"✗ 采集站配置文件格式错误: {e}")
+        sys.exit(1)
 
 
 def login(username, password):
@@ -393,45 +329,18 @@ def batch_import(token, room_id, movies):
         return False
 
 
-def load_custom_collectors():
-    """加载自定义采集站配置"""
-    if not os.path.exists(CUSTOM_CONFIG_FILE):
-        return {}
-
-    try:
-        with open(CUSTOM_CONFIG_FILE, 'r', encoding='utf-8') as f:
-            custom = json.load(f)
-            print(f"✓ 加载自定义配置: {len(custom)} 个采集站\n")
-            return custom
-    except Exception as e:
-        print(f"⚠ 加载自定义配置失败: {e}\n")
-        return {}
-
-
 def main():
     print("=" * 70)
     print("  SyncTV 采集站资源搜索导入工具 v2.2")
     print("=" * 70)
 
-    # 加载自定义配置
-    custom_collectors = load_custom_collectors()
-
-    # 合并采集站列表
-    all_collectors = COLLECTORS.copy()
-    if custom_collectors:
-        start_id = len(all_collectors) + 1
-        for i, (name, config) in enumerate(custom_collectors.items()):
-            all_collectors[str(start_id + i)] = {
-                "name": name,
-                "api": config.get("api"),
-                "type": config.get("type", "json"),
-                "status": "⭐"  # 自定义站点标记
-            }
+    # 加载采集站配置
+    collectors = load_collectors()
 
     # 显示采集站列表
     print("\n可用采集站:")
     print("-" * 70)
-    for id, info in all_collectors.items():
+    for id, info in collectors.items():
         status = info.get('status', '')
         name = info['name']
         # 显示是否有备用API
@@ -446,12 +355,11 @@ def main():
     print("\n提示:")
     print("  ✓ = 已测试可用")
     print("  ⚠ = 可能需要特殊网络环境")
-    print("  ⭐ = 自定义采集站")
     print("  推荐: 1-魔都资源 (动漫专注), 2-360资源, 3-红牛资源")
 
     # 选择采集站
-    collector_id = input(f"\n选择采集站 [1-{len(all_collectors)}] (默认: 1): ").strip() or "1"
-    if collector_id not in all_collectors:
+    collector_id = input(f"\n选择采集站 [1-{len(collectors)}] (默认: 1): ").strip() or "1"
+    if collector_id not in collectors:
         print("✗ 无效的选择")
         sys.exit(1)
 
@@ -461,8 +369,8 @@ def main():
         print("✗ 关键词不能为空")
         sys.exit(1)
 
-    # 使用all_collectors进行搜索
-    selected_collector = all_collectors[collector_id]
+    # 搜索
+    selected_collector = collectors[collector_id]
     results = search_collector_direct(selected_collector, keyword)
     if not display_results(results):
         sys.exit(0)
