@@ -7,6 +7,7 @@ venv/
 
 # 配置文件（包含敏感信息）
 collectors_custom.json
+.config.json
 
 # IDE
 .idea/
